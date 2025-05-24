@@ -12,7 +12,7 @@ host = "infraestructura-aurora-datawarehouse-instance-zxhlvevffc1c.cijt7auhxunw.
 puerto = 5432
 base = "finnegansbi"
 engine = create_engine(f'postgresql+psycopg2://{usuario}:{contraseña}@{host}:{puerto}/{base}')
-query = "SELECT * FROM inpro2021nube_composicion_saldos_clientes_inpr"
+query = "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil"
 df = pd.read_sql(query, engine)
 
 # Formateo decimal con coma
