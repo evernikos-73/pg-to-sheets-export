@@ -52,7 +52,7 @@ exportar_tabla(
 
 exportar_tabla(
     "SELECT * FROM public.inpro2021nube_pedidos_pendientes_de_entrega",
-    "Base Pedidos Pendientes",
+    "Base Pendientes Entrega",
     ["cantidad_pendiente"]
 )
 
