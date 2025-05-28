@@ -58,5 +58,7 @@ exportar_tabla(
 
 exportar_tabla(
     "SELECT * FROM public.inpro2021nube_facturacion",
-    "Base Facturacion"
+    "Base Facturacion",
+    ["preciomonedatransaccion",	"importemonedatransaccion",	"importemonedaprincipal",	"importemonedasecundaria"]
+    
 )
