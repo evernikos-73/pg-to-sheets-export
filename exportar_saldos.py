@@ -37,7 +37,7 @@ client = gspread.authorize(creds)
 # Abrir planilla
 spreadsheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
 
-# 📤 Exportar las tres tablas con sus respectivas columnas a formatear
+# 📤 Exportar las tablas con sus respectivas columnas a formatear
 exportar_tabla(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
     "Base Saldos Clientes",
@@ -56,3 +56,7 @@ exportar_tabla(
     ["cantidad_pendiente"]
 )
 
+exportar_tabla(
+    "SELECT * FROM public.facturas_de_venta",
+    "Base Facturacion"
+)
