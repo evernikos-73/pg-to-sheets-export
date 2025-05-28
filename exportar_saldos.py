@@ -57,6 +57,6 @@ exportar_tabla(
 )
 
 exportar_tabla(
-    "SELECT * FROM public.facturas_de_venta",
+    "SELECT * FROM public.inpro2021nube_facturacion",
     "Base Facturacion"
 )
