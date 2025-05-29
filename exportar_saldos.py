@@ -42,7 +42,7 @@ def exportar_libro_mayor(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
     valores = df_recortado.values.tolist()
     worksheet = spreadsheet.worksheet(hoja_nombre)
     worksheet.batch_clear(["A2:Q"])
-    worksheet.update("A2", valores)
+    worksheet.update(values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Libro Mayor")
 
 # 📁 Abrir Spreadsheet 1 (Composición de saldos)
