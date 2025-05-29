@@ -62,3 +62,12 @@ exportar_tabla(
     ["preciomonedatransaccion",	"importemonedatransaccion",	"importemonedaprincipal",	"importemonedasecundaria", "cotizacionmonedatransaccion", "cantidad"]
     
 )
+
+
+exportar_tabla(
+    "SELECT * FROM public.inpro2021nube_libro_mayor",
+    "Base Libro Mayor",
+    ["debe",	"haber",	"importemonedaprincipal",	"imp__operacion_ppal_", "imp__operacion_sec_"]
+    
+)
+
