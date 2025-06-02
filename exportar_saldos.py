@@ -87,9 +87,3 @@ exportar_libro_mayor(
     ["debe", "haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_"]
 )
 
-exportar_stock(
-    "SELECT * FROM public.inpro2021nube_ingresos_y_egresos_stock",
-    libro_mayor_sheet,
-    "Aux stock",
-    ["stock"]
-)
