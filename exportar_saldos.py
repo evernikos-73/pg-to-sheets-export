@@ -87,3 +87,25 @@ exportar_libro_mayor(
     ["debe", "haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_"]
 )
 
+
+# 📤 Exportar a hoja "Aux Stock" solo columnas A a J sin encabezado
+def exportar_stock(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
+    df = pd.read_sql(query, engine)
+    for col in columnas_decimal:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+    df_recortado = df.iloc[:, :10]  # Columnas A - J
+    valores = df_recortado.values.tolist()
+    worksheet = spreadsheet.worksheet(hoja_nombre)
+    worksheet.batch_clear(["A2:J"])  # Borra solo A2 a J
+    worksheet.update(values=valores, range_name="A2")
+    print("✅ Exportado sin encabezado: Aux Stock")
+
+# 📤 Ejecutar la exportación
+exportar_stock(
+    "SELECT * FROM public.inpro2021nube_ingresos_y_egresos_stock",
+    libro_mayor_sheet,
+    "Aux Stock",
+    ["stock"]
+)
