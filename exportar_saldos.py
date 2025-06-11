@@ -15,8 +15,8 @@ client = gspread.authorize(creds)
 engine_origen = create_engine("postgresql+psycopg2://inpro2021nubeuser:Inproc987@infraestructura-aurora-datawarehouse-instance-zxhlvevffc1c.cijt7auhxunw.us-east-1.rds.amazonaws.com:5432/finnegansbi")
 
 # 📦 Supabase destino
-supabase_url = os.environ['db.hrjumhathzvikkmmcpya.supabase.co']
-supabase_pass = os.environ['*@q"Sc1ygpwkW$J@']
+supabase_url = os.environ['SUPABASE_URL']
+supabase_key = os.environ['SUPABASE_KEY']
 engine_supabase = create_engine(f"postgresql+psycopg2://postgres:{supabase_pass}@{supabase_url}/postgres")
 
 # 📁 Google Sheets
