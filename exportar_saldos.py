@@ -17,7 +17,7 @@ engine_origen = create_engine("postgresql+psycopg2://inpro2021nubeuser:Inproc987
 # 📦 Supabase destino
 supabase_url = os.environ['SUPABASE_URL']
 supabase_key = os.environ['SUPABASE_KEY']
-engine_supabase = create_engine(f"postgresql+psycopg2://postgres:{supabase_pass}@{supabase_url}/postgres")
+engine_supabase = create_engine(f"postgresql+psycopg2://postgres:{supabase_key}@{supabase_url}/postgres")
 
 # 📁 Google Sheets
 sheet_saldos = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
