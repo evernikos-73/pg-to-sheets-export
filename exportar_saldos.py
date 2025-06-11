@@ -95,10 +95,10 @@ def exportar_stock(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
-    df_recortado = df.iloc[:, :10]  # Columnas A - J
+    df_recortado = df.iloc[:, :9]  # Columnas A - I
     valores = df_recortado.values.tolist()
     worksheet = spreadsheet.worksheet(hoja_nombre)
-    worksheet.batch_clear(["A2:J"])  # Borra solo A2 a J
+    worksheet.batch_clear(["A2:I"])  # Borra solo A2 a I
     worksheet.update(values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Stock")
 
