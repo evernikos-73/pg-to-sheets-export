@@ -84,7 +84,7 @@ exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
     libro_mayor_sheet,
     "Aux Libro Mayor",
-    ["debe", "haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_"]
+    ["debe", "haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_","tipo_cambio"]
 )
 
 
