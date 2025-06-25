@@ -109,3 +109,29 @@ exportar_stock(
     "Aux Stock",
     ["stock"]
 )
+
+
+# 📁 Abrir Spreadsheet 3 (Stock con PUC)
+stock_con_puc_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1KQCsJbtIBDfDv86Y9n4lU6Z6e0s9SSVlPlq1MN-dF6g/edit")
+
+# 📤 Exportar stock con PUC a "Aux Stock" (solo A-J sin encabezado)
+def exportar_stock_puc(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
+    df = pd.read_sql(query, engine)
+    for col in columnas_decimal:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+    df_recortado = df.iloc[:, :10]  # Columnas A - J (10 columnas)
+    valores = df_recortado.values.tolist()
+    worksheet = spreadsheet.worksheet(hoja_nombre)
+    worksheet.batch_clear(["A2:J"])  # Limpia solo A2 a J
+    worksheet.update(values=valores, range_name="A2")
+    print("✅ Exportado sin encabezado: Aux Stock (PUC)")
+
+# 📤 Ejecutar exportación stock con PUC
+exportar_stock_puc(
+    "SELECT * FROM public.inpro2021nube_stock_con_PUC",
+    stock_con_puc_sheet,
+    "Aux Stock",
+    ["stock"]
+)
