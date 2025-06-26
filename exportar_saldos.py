@@ -133,5 +133,5 @@ exportar_stock_puc(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     stock_con_puc_sheet,
     "Aux Stock",
-    ["stock"]
+    ["stock","UltimoPrecioCompra"]
 )
