@@ -105,7 +105,7 @@ def exportar_stock(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
 # 📤 Ejecutar la exportación
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
-    stock_con_puc_sheet,
+    libro_mayor_sheet,
     "Aux Stock",
     ["stock","UltimoPrecioCompra"]
 )
