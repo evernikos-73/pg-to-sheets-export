@@ -111,6 +111,11 @@ exportar_tabla_completa(
     ["preciomonedatransaccion", "importemonedatransaccion", "importemonedaprincipal",
      "importemonedasecundaria", "cotizacionmonedatransaccion", "cantidad"]
 )
+exportar_tabla_completa(
+    "SELECT * FROM public.inpro2021cobranza",
+    saldos_sheet, "Base Cobranza",
+    ["Importe Factura"]
+)
 
 # 📁 Spreadsheet 2
 libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA/edit")
@@ -132,4 +137,3 @@ exportar_stock(
     stock_con_puc_sheet, "Aux Stock",
     ["stock","UltimoPrecioCompra"]
 )
-
