@@ -112,7 +112,7 @@ exportar_tabla_completa(
      "importemonedasecundaria", "cotizacionmonedatransaccion", "cantidad"]
 )
 exportar_tabla_completa(
-    "SELECT * FROM public.inpro2021nube_cobranza",
+    "SELECT * FROM public.inpro2021nube_cobranzas",
     saldos_sheet, "Base Cobranza",
     ["Importe Factura"]
 )
