@@ -95,10 +95,10 @@ def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
-    df_recortado = df.iloc[:, :8]  # 👈 solo columnas A:H
+    df_recortado = df.iloc[:, :10]  # 👈 solo columnas A:H
     valores = df_recortado.values.tolist()
     worksheet = spreadsheet.worksheet(hoja_nombre)
-    worksheet.batch_clear(["A2:H"])
+    worksheet.batch_clear(["A2:j"])
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
 
@@ -146,7 +146,7 @@ exportar_stock(
 exportar_sumas_y_saldos(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
     libro_mayor_sheet, "Aux Sumas y Saldos",
-    ["sumadebe", "sumahaber", "saldoacumulado"]
+    ["debe", "haber", "saldoperiodo", "saldo", "saldoinicial"]
 )
 
 # 📁 Spreadsheet 3
