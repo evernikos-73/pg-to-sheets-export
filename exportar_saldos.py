@@ -88,6 +88,20 @@ def exportar_stock(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Stock")
 
+# 📤 Exportar A2:H sin encabezado
+def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
+    df = pd.read_sql(query, engine)
+    for col in columnas_decimal:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+    df_recortado = df.iloc[:, :8]  # 👈 solo columnas A:H
+    valores = df_recortado.values.tolist()
+    worksheet = spreadsheet.worksheet(hoja_nombre)
+    worksheet.batch_clear(["A2:H"])
+    update_with_retry(worksheet, values=valores, range_name="A2")
+    print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
+
 # 📁 Spreadsheet 1
 saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
 exportar_tabla_completa(
@@ -128,6 +142,11 @@ exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     libro_mayor_sheet, "Aux Stock",
     ["stock","UltimoPrecioCompra"]
+)
+exportar_sumas_y_saldos(
+    "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
+    libro_mayor_sheet, "Aux Sumas y Saldos",
+    ["sumadebe", "sumahaber", "saldoacumulado"]
 )
 
 # 📁 Spreadsheet 3
