@@ -107,7 +107,7 @@ saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fd
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
     saldos_sheet, "Base Saldos Clientes",
-    ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
+    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundariaon"]
 )
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
@@ -136,7 +136,7 @@ libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1
 exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
     libro_mayor_sheet, "Aux Libro Mayor",
-    ["Debe", "Haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_","tipo_cambio"]
+    ["Debe", "Haber", "importemonedaprincipal", "Imp. operacion ppal.", "Imp. operacion sec.","Tipo Cambio"]
 )
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
