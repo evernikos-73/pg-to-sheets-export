@@ -136,17 +136,17 @@ libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1
 exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
     libro_mayor_sheet, "Aux Libro Mayor",
-    ["debe", "haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_","tipo_cambio"]
+    ["Debe", "Haber", "importemonedaprincipal", "imp__operacion_ppal_", "imp__operacion_sec_","tipo_cambio"]
 )
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     libro_mayor_sheet, "Aux Stock",
-    ["stock","UltimoPrecioCompra"]
+    ["Stock","UltimoPrecioCompra"]
 )
 exportar_sumas_y_saldos(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
     libro_mayor_sheet, "Aux Sumas y Saldos",
-    ["debe", "haber", "saldoperiodo", "saldo", "saldoinicial"]
+    ["Debe", "Haber", "saldoperiodo", "saldo", "saldoinicial"]
 )
 
 # 📁 Spreadsheet 3
@@ -154,5 +154,5 @@ stock_con_puc_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     stock_con_puc_sheet, "Aux Stock",
-    ["stock","UltimoPrecioCompra"]
+    ["Stock","UltimoPrecioCompra"]
 )
