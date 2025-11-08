@@ -114,17 +114,17 @@ def obtener_datos_facturacion():
     Solo incluye ventas donde cuentanombre comience con 'Ventas Merc'
     """
     query = """
-    SELECT 
-        clientecodigo,
-        clientenombre,
-        fechacomprobante,
-        empresacodigo,
-        empresanombre,
-        cuentanombre
-    FROM public.inpro2021nube_facturacion
-    WHERE cuentanombre LIKE 'Ventas Merc%'
-    ORDER BY clientecodigo, fechacomprobante
-    """
+SELECT 
+    clientecodigo,
+    clientenombre,
+    fechacomprobante,
+    empresacodigo,
+    empresanombre,
+    cuentanombre
+FROM public.inpro2021nube_facturacion
+WHERE cuentanombre LIKE 'Ventas Merc%%'
+ORDER BY clientecodigo, fechacomprobante
+"""
     
     df = pd.read_sql(query, engine)
     df['fechacomprobante'] = pd.to_datetime(df['fechacomprobante'])
