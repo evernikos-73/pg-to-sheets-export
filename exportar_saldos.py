@@ -327,7 +327,7 @@ exportar_tabla_completa(
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_cobranzas",
     saldos_sheet, "Base Cobranza",
-    ["Importe Factura"]
+    ["importe_cobranza"]
 )
 
 # Análisis de churn y exportación a Spreadsheet 1, pestaña Analisis_Churn
