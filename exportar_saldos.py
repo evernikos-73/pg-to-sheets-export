@@ -10,6 +10,11 @@ from dateutil.relativedelta import relativedelta
 
 # 🔐 Google Sheets auth
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# --- NOTA: Asegúrate de que la variable de entorno "GOOGLE_CREDENTIALS_JSON" esté configurada ---
+# En el script original se usaba un archivo, aquí se usa una variable de entorno.
+# Si estás ejecutando esto localmente, puede que necesites adaptar esta parte
+# o volver a gspread.service_account(filename="service_account.json") si es más fácil.
+# Por ahora, mantendré la lógica de tu script de exportación más grande.
 cred_dict = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(cred_dict, scope)
 client = gspread.authorize(creds)
@@ -54,14 +59,23 @@ def update_with_retry(worksheet, values, range_name, retries=3, wait=5):
 # 🧩 Función genérica para exportar a hoja completa
 def exportar_tabla_completa(query_or_df, spreadsheet, hoja_nombre, columnas_decimal=[]):
     if isinstance(query_or_df, str):
+        print(f"Ejecutando consulta para: {hoja_nombre}...")
         df = pd.read_sql(query_or_df, engine)
     else:
+        print(f"Procesando DataFrame para: {hoja_nombre}...")
         df = query_or_df
+    
     for col in columnas_decimal:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
-    worksheet = spreadsheet.worksheet(hoja_nombre)
+    
+    try:
+        worksheet = spreadsheet.worksheet(hoja_nombre)
+    except gspread.exceptions.WorksheetNotFound:
+        print(f"⚠️ No se encontró la hoja '{hoja_nombre}', creando una nueva...")
+        worksheet = spreadsheet.add_worksheet(title=hoja_nombre, rows="100", cols="20")
+        
     worksheet.clear()
     set_with_retry(worksheet, df)
     print(f"✅ Exportado: {hoja_nombre}")
@@ -107,6 +121,96 @@ def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]
     worksheet.batch_clear(["A2:j"])
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
+
+# --- INICIO LÓGICA INTEGRADA (del script de stock) ---
+
+def generar_informe_stock_pendiente(engine):
+    """
+    Crea el DataFrame 'Maestro Productos' con stock disponible,
+    replicando la lógica del script generar_informe_stock.py.
+    Usa el 'engine' de sqlalchemy existente.
+    """
+    print("\nEjecutando informe de stock pendiente...")
+
+    # 1. Obtener 'inpro2021nube_stock_productos_de_venta'
+    sql_stock = """
+        SELECT producto, stock
+        FROM public.inpro2021nube_stock_productos_de_venta
+        WHERE deposito IN (
+            'BsAs-P.TERMINADOS', 
+            'Calidad-P.TERMINADOS Sin Aprobar', 
+            'ER-P.TERMINADOS Aprobado', 
+            'PT Calidad BSAS'
+        )
+    """
+    
+    # 2. Obtener 'inpro2021nube_stock_comprometido'
+    sql_comprometido = """
+        SELECT producto, cantidadpendiente, tipo
+        FROM public.inpro2021nube_stock_comprometido
+        WHERE tipo IN ('Presupuesto de venta', 'Pedido de venta')
+    """
+    
+    try:
+        print("Ejecutando consulta de stock (informe stock pendiente)...")
+        df_stock = pd.read_sql(sql_stock, engine)
+        print(f"Se obtuvieron {len(df_stock)} registros de stock.")
+        
+        print("Ejecutando consulta de comprometido (informe stock pendiente)...")
+        df_comprometido = pd.read_sql(sql_comprometido, engine)
+        print(f"Se obtuvieron {len(df_comprometido)} registros comprometidos.")
+        
+    except pd.io.sql.DatabaseError as e:
+        print(f"Error al ejecutar consulta SQL para informe de stock: {e}")
+        return pd.DataFrame() # Devuelve DataFrame vacío en error
+
+    # --- Replicar M-Query: "Tipo cambiado" ---
+    print("Transformando y agregando datos (informe stock pendiente)...")
+    df_stock['stock'] = pd.to_numeric(df_stock['stock'], errors='coerce').fillna(0).astype(int)
+    df_comprometido['cantidadpendiente'] = pd.to_numeric(df_comprometido['cantidadpendiente'], errors='coerce').fillna(0).astype(int)
+
+    # --- Replicar M-Query: "Maestro de productos" ---
+    # `Table.Distinct(Table.SelectColumns(Origen,{"producto"}))`
+    productos_unicos = df_stock['producto'].unique()
+    maestro_productos = pd.DataFrame(productos_unicos, columns=['producto'])
+
+    # --- Replicar Columna DAX: [Stock] ---
+    # `calculate(sum(inpro...[stock]); ...)`
+    stock_agg = df_stock.groupby('producto')['stock'].sum().reset_index(name='Stock')
+
+    # --- Replicar Columna DAX: [Pendiente Ppto Vta] ---
+    # `calculate(sum(inpro...[cantidadpendiente]); ...[tipo] ="Presupuesto de venta")`
+    df_ppto_vta = df_comprometido[df_comprometido['tipo'] == 'Presupuesto de venta']
+    ppto_vta_agg = df_ppto_vta.groupby('producto')['cantidadpendiente'].sum().reset_index(name='Pendiente Ppto Vta')
+
+    # --- Replicar Columna DAX: [Pendiente Pedido Vta] ---
+    # `calculate(sum(inpro...[cantidadpendiente]); ...[tipo] ="Pedido de venta")`
+    df_pedido_vta = df_comprometido[df_comprometido['tipo'] == 'Pedido de venta']
+    pedido_vta_agg = df_pedido_vta.groupby('producto')['cantidadpendiente'].sum().reset_index(name='Pendiente Pedido Vta')
+
+    # --- Unir todo en el Maestro Productos ---
+    print("Ensamblando tabla final (informe stock pendiente)...")
+    maestro_productos = maestro_productos.merge(stock_agg, on='producto', how='left')
+    maestro_productos = maestro_productos.merge(ppto_vta_agg, on='producto', how='left')
+    maestro_productos = maestro_productos.merge(pedido_vta_agg, on='producto', how='left')
+
+    # Rellenar con 0 los productos que no tenían movimientos (NaN después del merge)
+    cols_calculadas = ['Stock', 'Pendiente Ppto Vta', 'Pendiente Pedido Vta']
+    maestro_productos[cols_calculadas] = maestro_productos[cols_calculadas].fillna(0).astype(int)
+
+    # --- Replicar Medida DAX: [Stock Disponible] ---
+    # `[# Stock]-[# Stock pdte ppto vta]-[# Stock pdte pedido vta]`
+    maestro_productos['Stock Disponible'] = (
+        maestro_productos['Stock'] - 
+        maestro_productos['Pendiente Ppto Vta'] - 
+        maestro_productos['Pendiente Pedido Vta']
+    )
+    
+    print(f"Cálculo de stock pendiente completado. {len(maestro_productos)} productos procesados.")
+    return maestro_productos
+
+# --- FIN LÓGICA INTEGRADA ---
+
 
 # Funciones para análisis de churn (adaptadas del notebook)
 def obtener_datos_facturacion():
@@ -301,7 +405,10 @@ def crear_matriz_churn(df):
     
     return pd.DataFrame(resultados)
 
+# --- INICIO BLOQUE DE EJECUCIÓN ---
+
 # 📁 Spreadsheet 1
+print("\n--- Procesando Spreadsheet 1: Saldos ---")
 saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
@@ -340,7 +447,24 @@ exportar_tabla_completa(
     []  # No hay columnas decimales específicas para formatear
 )
 
+# --- LLAMADA A LA LÓGICA INTEGRADA ---
+# Generar y exportar el Informe de Stock Pendiente
+df_informe_stock = generar_informe_stock_pendiente(engine)
+
+if not df_informe_stock.empty:
+    exportar_tabla_completa(
+        df_informe_stock,
+        saldos_sheet,
+        "Informe Stock Pendiente", # Nombre de la hoja de tu script original
+        [] # No se necesita formato decimal, ya son enteros
+    )
+else:
+    print("⚠️ No se generó el informe de stock pendiente (DataFrame vacío).")
+
+# --- FIN LLAMANDA ---
+
 # 📁 Spreadsheet 2
+print("\n--- Procesando Spreadsheet 2: Libro Mayor ---")
 libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA/edit")
 exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
@@ -359,9 +483,12 @@ exportar_sumas_y_saldos(
 )
 
 # 📁 Spreadsheet 3
+print("\n--- Procesando Spreadsheet 3: Stock PUC ---")
 stock_con_puc_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1KQCsJbtIBDfDv86Y9n4lU6Z6e0s9SSVlPlq1MN-dF6g/edit")
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     stock_con_puc_sheet, "Aux Stock",
     ["Stock","UltimoPrecioCompra"]
 )
+
+print("\n--- ✨ Todas las exportaciones completadas ---")
