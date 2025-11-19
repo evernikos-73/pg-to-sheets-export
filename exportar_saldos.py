@@ -308,7 +308,7 @@ def crear_matriz_churn(df):
 # ----------------------------------------------------------------------------------
 # CONFIGURACIÓN DE QUERYS ESPECÍFICAS
 # ----------------------------------------------------------------------------------
-# 💡 QUERY FILTRADA SOLICITADA 💡
+# Query para Saldos Clientes (Filtrada)
 QUERY_SALDOS_FILTRADOS = """
 SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil c
 WHERE 
@@ -316,28 +316,50 @@ WHERE
     c.cuentacontablecodigo IN ('ANT101', 'AAP301', 'DML101')
 """
 
-# 📁 Spreadsheet 1
-saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
+# 💡 NUEVA QUERY: Saldos Proveedores (Filtrada) 💡
+QUERY_SALDOS_PROVEEDORES = """
+SELECT * FROM public.composicion_de_saldos_proveedores c
+WHERE c.empresanombre = 'INPROCIL S.A.'
+"""
 
-# 💡 EXPORTACIÓN MODIFICADA PARA USAR LA QUERY FILTRADA 💡
+# 📁 Spreadsheet 1
+SHEET_ID_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
+saldos_sheet = client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SHEET_ID_SALDOS}/edit")
+
+# ----------------------------------------------------------------------------------
+# EXPORTACIONES PRINCIPALES (Spreadsheet 1)
+# ----------------------------------------------------------------------------------
+
+# Exportación 1: Base Saldos Clientes (FILTRADA)
 exportar_tabla_completa(
     QUERY_SALDOS_FILTRADOS,
     saldos_sheet, "Base Saldos Clientes",
-    ["importemonedatransaccion", "importemonedaprincipal", "omportemonedaaecundaria"]
+    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundariaon"]
 )
 
+# 💡 Exportación 2: Composición Saldo Proveedores (NUEVA) 💡
+exportar_tabla_completa(
+    QUERY_SALDOS_PROVEEDORES,
+    saldos_sheet, "Composicion Saldo Proveedores",
+    # Se asumen las mismas columnas de importe para formateo
+    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundariaon"] 
+)
+
+# Exportación 3: Base Sumas y Saldos
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
     saldos_sheet, "Base Sumas y Saldos",
     ["sumadebe", "sumahaber", "saldoacumulado"]
 )
 
+# Exportación 4: Base Pendientes Entrega
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_pedidos_pendientes_de_entrega",
     saldos_sheet, "Base Pendientes Entrega",
     ["cantidad_pendiente"]
 )
 
+# Exportación 5: Base Facturacion
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_facturacion",
     saldos_sheet, "Base Facturacion",
@@ -355,6 +377,10 @@ exportar_tabla_completa(
     saldos_sheet, "Analisis_Churn",
     []  # No hay columnas decimales específicas para formatear
 )
+
+# ----------------------------------------------------------------------------------
+# EXPORTACIONES SECUNDARIAS (Spreadsheet 2 y 3)
+# ----------------------------------------------------------------------------------
 
 # 📁 Spreadsheet 2
 libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA/edit")
