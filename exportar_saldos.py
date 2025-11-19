@@ -9,7 +9,6 @@ import numpy as np
 from dateutil.relativedelta import relativedelta
 
 # 🔐 Google Sheets auth
-# NOTA: ASUME QUE LA VARIABLE DE ENTORNO GOOGLE_CREDENTIALS_JSON ESTÁ CONFIGURADA
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 cred_dict = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(cred_dict, scope)
@@ -52,14 +51,31 @@ def update_with_retry(worksheet, values, range_name, retries=3, wait=5):
             else:
                 raise
 
-# 🧩 Función genérica para exportar a hoja completa (INCLUYE CORRECCIÓN DE IMPORTES)
+# 🧩 FUNCIÓN GENÉRICA EXPORTAR TABLA COMPLETA (Restaurada al formato original)
 def exportar_tabla_completa(query_or_df, spreadsheet, hoja_nombre, columnas_decimal=[]):
     if isinstance(query_or_df, str):
         df = pd.read_sql(query_or_df, engine)
     else:
         df = query_or_df
+        
+    for col in columnas_decimal:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+            
+    worksheet = spreadsheet.worksheet(hoja_nombre)
+    worksheet.clear()
+    set_with_retry(worksheet, df)
+    print(f"✅ Exportado: {hoja_nombre}")
+
+# 💡 FUNCIÓN ESPECÍFICA PARA CORREGIR COMPOSICIÓN DE SALDOS 💡
+def exportar_tabla_corregida(query_or_df, spreadsheet, hoja_nombre):
+    if isinstance(query_or_df, str):
+        df = pd.read_sql(query_or_df, engine)
+    else:
+        df = query_or_df
     
-    # --- INICIO DE LA CORRECCIÓN DE IMPORTES SOLICITADA ---
+    # Columnas que necesitan división por 100 y corrección de formato
     columnas_a_corregir_y_dividir = [
         'importemonedatransaccion', 
         'importemonedaprincipal', 
@@ -68,30 +84,22 @@ def exportar_tabla_completa(query_or_df, spreadsheet, hoja_nombre, columnas_deci
     
     for col in columnas_a_corregir_y_dividir:
         if col in df.columns:
-            # 1. Limpieza inicial: Elimina puntos o comas residuales (si es que la BD los trae como texto)
+            # 1. Limpieza inicial
             df[col] = df[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
             
-            # 2. Conversión a numérico (float)
+            # 2. Conversión a numérico
             df[col] = pd.to_numeric(df[col], errors="coerce")
             
-            # 3. CORRECCIÓN PRINCIPAL: Divide por 100 para restaurar los decimales (e.g., 242456112 -> 2424561.12)
-            df[col] = df[col] / 100.0
+            # 3. CORRECCIÓN PRINCIPAL: División por 10000
+            df[col] = df[col] / 10000.0
 
-            # 4. Formato Regional: De flotante a string (Separador de miles con punto, decimal con coma)
-            # Se usa un truco con .replace("X") para invertir la coma y el punto del formato local.
+            # 4. Formato Regional: (Punto para miles, Coma para decimales)
             df[col] = df[col].apply(lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notnull(x) else "")
-    # --- FIN DE LA CORRECCIÓN DE IMPORTES ---
-    
-    # Lógica para otras columnas decimales que no sean de importe (si las hay)
-    for col in columnas_decimal:
-        if col in df.columns and col not in columnas_a_corregir_y_dividir:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-            df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
             
     worksheet = spreadsheet.worksheet(hoja_nombre)
     worksheet.clear()
     set_with_retry(worksheet, df)
-    print(f"✅ Exportado: {hoja_nombre}")
+    print(f"✅ Exportado CORREGIDO: {hoja_nombre}")
 
 # 🧩 Exportar solo A2:Q sin encabezado
 def exportar_libro_mayor(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
@@ -334,10 +342,10 @@ def crear_matriz_churn(df):
 # ----------------------------------------------------------------------------------
 # CONFIGURACIÓN DE QUERYS ESPECÍFICAS
 # ----------------------------------------------------------------------------------
-# 💡 CONSULTA FILTRADA
+# CONSULTA FILTRADA
 QUERY_COMPOSICION_SALDOS = "SELECT * FROM public.composicion_de_saldos_clientes c WHERE c.empresanombre = 'INPROCIL S.A.'"
 SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
-# 💡 NOMBRE DE LA PESTAÑA SOLICITADO
+# NOMBRE DE LA PESTAÑA
 SHEET_NAME_COMPOSICION = "Composición_Saldos_Clientes"
 
 # ----------------------------------------------------------------------------------
@@ -348,17 +356,15 @@ SHEET_NAME_COMPOSICION = "Composición_Saldos_Clientes"
 saldos_sheet = client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SHEET_ID_FOR_SALDOS}/edit")
 
 # ==================================================================================
-# 💡 EXPORTACIÓN PRINCIPAL Y CORREGIDA 💡
+# 💡 LLAMADA ÚNICA A LA FUNCIÓN CORREGIDA (SOLO PARA COMPOSICIÓN DE SALDOS) 💡
 # ==================================================================================
-print(f"\nEjecutando exportación filtrada y corregida a la pestaña: {SHEET_NAME_COMPOSICION}")
-exportar_tabla_completa(
+print(f"\nEjecutando exportación FILTRADA y CORREGIDA a la pestaña: {SHEET_NAME_COMPOSICION}")
+exportar_tabla_corregida(
     QUERY_COMPOSICION_SALDOS,
-    saldos_sheet, SHEET_NAME_COMPOSICION, 
-    # Las columnas decimales se manejan internamente con la corrección de formato
-    [] 
+    saldos_sheet, SHEET_NAME_COMPOSICION 
 )
 
-# Exportaciones existentes (el resto del código se mantiene)
+# Exportaciones existentes (usan la función genérica 'exportar_tabla_completa' sin corrección de $ / 100)
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
     saldos_sheet, "Base Saldos Clientes",
