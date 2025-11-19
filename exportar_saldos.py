@@ -308,7 +308,8 @@ def crear_matriz_churn(df):
 # ----------------------------------------------------------------------------------
 # CONFIGURACIÓN DE QUERYS ESPECÍFICAS
 # ----------------------------------------------------------------------------------
-QUERY_COMPOSICION_SALDOS = "SELECT * FROM public.composicion_de_saldos_clientes"
+# 💡 CONSULTA MODIFICADA SEGÚN SOLICITUD
+QUERY_COMPOSICION_SALDOS = "SELECT * FROM public.composicion_de_saldos_clientes c WHERE c.empresanombre = 'INPROCIL S.A.'"
 SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
 
 # ----------------------------------------------------------------------------------
@@ -319,16 +320,14 @@ SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
 saldos_sheet = client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SHEET_ID_FOR_SALDOS}/edit")
 
 # ==================================================================================
-# 💡 NUEVA EXPORTACIÓN SOLICITADA 💡
-# La tabla COMPOSICION_DE_SALDOS_CLIENTES a la hoja con el mismo ID.
-# Asumo que el nombre de la pestaña es el mismo ID de la Spreadsheet, 
-# pero la librería gspread usa un nombre legible. Usaré el ID como nombre de la pestaña.
+# 💡 EXPORTACIÓN ACTUALIZADA 💡
+# La tabla COMPOSICION_DE_SALDOS_CLIENTES filtrada.
 # ==================================================================================
-print("\nEjecutando nueva exportación: composicion_de_saldos_clientes")
+print("\nEjecutando nueva exportación (FILTRADA): composicion_de_saldos_clientes de INPROCIL S.A.")
 exportar_tabla_completa(
     QUERY_COMPOSICION_SALDOS,
-    saldos_sheet, SHEET_ID_FOR_SALDOS,
-    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundaria"] # Ajusté el nombre de la última columna decimal
+    saldos_sheet, SHEET_ID_FOR_SALDOS, # Se usa el ID del archivo también como nombre de la pestaña
+    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundaria"]
 )
 
 # Exportaciones existentes (movidas bajo la nueva exportación)
