@@ -9,6 +9,7 @@ import numpy as np
 from dateutil.relativedelta import relativedelta
 
 # 🔐 Google Sheets auth
+# NOTA: ASUME QUE LA VARIABLE DE ENTORNO GOOGLE_CREDENTIALS_JSON ESTÁ CONFIGURADA
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 cred_dict = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
 creds = ServiceAccountCredentials.from_json_keyfile_dict(cred_dict, scope)
@@ -51,16 +52,42 @@ def update_with_retry(worksheet, values, range_name, retries=3, wait=5):
             else:
                 raise
 
-# 🧩 Función genérica para exportar a hoja completa
+# 🧩 Función genérica para exportar a hoja completa (INCLUYE CORRECCIÓN DE IMPORTES)
 def exportar_tabla_completa(query_or_df, spreadsheet, hoja_nombre, columnas_decimal=[]):
     if isinstance(query_or_df, str):
         df = pd.read_sql(query_or_df, engine)
     else:
         df = query_or_df
-    for col in columnas_decimal:
+    
+    # --- INICIO DE LA CORRECCIÓN DE IMPORTES SOLICITADA ---
+    columnas_a_corregir_y_dividir = [
+        'importemonedatransaccion', 
+        'importemonedaprincipal', 
+        'importemonedasecundaria'
+    ]
+    
+    for col in columnas_a_corregir_y_dividir:
         if col in df.columns:
+            # 1. Limpieza inicial: Elimina puntos o comas residuales (si es que la BD los trae como texto)
+            df[col] = df[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
+            
+            # 2. Conversión a numérico (float)
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            
+            # 3. CORRECCIÓN PRINCIPAL: Divide por 100 para restaurar los decimales (e.g., 242456112 -> 2424561.12)
+            df[col] = df[col] / 100.0
+
+            # 4. Formato Regional: De flotante a string (Separador de miles con punto, decimal con coma)
+            # Se usa un truco con .replace("X") para invertir la coma y el punto del formato local.
+            df[col] = df[col].apply(lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notnull(x) else "")
+    # --- FIN DE LA CORRECCIÓN DE IMPORTES ---
+    
+    # Lógica para otras columnas decimales que no sean de importe (si las hay)
+    for col in columnas_decimal:
+        if col in df.columns and col not in columnas_a_corregir_y_dividir:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+            
     worksheet = spreadsheet.worksheet(hoja_nombre)
     worksheet.clear()
     set_with_retry(worksheet, df)
@@ -112,7 +139,7 @@ def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
 
-# Funciones para análisis de churn (adaptadas del notebook)
+# Funciones para análisis de churn (no modificadas)
 def obtener_datos_facturacion():
     """Obtiene los datos de facturación de la base de datos
     Solo incluye ventas donde cuentanombre comience con 'Ventas Merc'
@@ -154,7 +181,6 @@ def calcular_meses_desde_fecha(fecha_inicio, fecha_fin):
 
 def calcular_status_mensual(df, cliente, primera_compra, mes_inicio, mes_fin, status_mes_anterior):
     """Calcula el status mensual de un cliente basado en la lógica DAX
-    
     Lógica de churn: Si un cliente no compra durante 3 meses seguidos (<=3 meses),
     al 4to mes (después de 3 meses completos) se declara churn.
     """
@@ -308,9 +334,11 @@ def crear_matriz_churn(df):
 # ----------------------------------------------------------------------------------
 # CONFIGURACIÓN DE QUERYS ESPECÍFICAS
 # ----------------------------------------------------------------------------------
-# 💡 CONSULTA MODIFICADA SEGÚN SOLICITUD
+# 💡 CONSULTA FILTRADA
 QUERY_COMPOSICION_SALDOS = "SELECT * FROM public.composicion_de_saldos_clientes c WHERE c.empresanombre = 'INPROCIL S.A.'"
 SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
+# 💡 NOMBRE DE LA PESTAÑA SOLICITADO
+SHEET_NAME_COMPOSICION = "Composición_Saldos_Clientes"
 
 # ----------------------------------------------------------------------------------
 # EXPORTACIONES PRINCIPALES
@@ -320,17 +348,17 @@ SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
 saldos_sheet = client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SHEET_ID_FOR_SALDOS}/edit")
 
 # ==================================================================================
-# 💡 EXPORTACIÓN ACTUALIZADA 💡
-# La tabla COMPOSICION_DE_SALDOS_CLIENTES filtrada.
+# 💡 EXPORTACIÓN PRINCIPAL Y CORREGIDA 💡
 # ==================================================================================
-print("\nEjecutando nueva exportación (FILTRADA): composicion_de_saldos_clientes de INPROCIL S.A.")
+print(f"\nEjecutando exportación filtrada y corregida a la pestaña: {SHEET_NAME_COMPOSICION}")
 exportar_tabla_completa(
     QUERY_COMPOSICION_SALDOS,
-    saldos_sheet, SHEET_ID_FOR_SALDOS, # Se usa el ID del archivo también como nombre de la pestaña
-    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundaria"]
+    saldos_sheet, SHEET_NAME_COMPOSICION, 
+    # Las columnas decimales se manejan internamente con la corrección de formato
+    [] 
 )
 
-# Exportaciones existentes (movidas bajo la nueva exportación)
+# Exportaciones existentes (el resto del código se mantiene)
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
     saldos_sheet, "Base Saldos Clientes",
