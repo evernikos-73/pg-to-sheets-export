@@ -75,7 +75,7 @@ def exportar_tabla_corregida(query_or_df, spreadsheet, hoja_nombre):
     else:
         df = query_or_df
     
-    # Columnas que necesitan división por 100 y corrección de formato
+    # Columnas que necesitan división por 10000 y corrección de formato
     columnas_a_corregir_y_dividir = [
         'importemonedatransaccion', 
         'importemonedaprincipal', 
@@ -90,7 +90,7 @@ def exportar_tabla_corregida(query_or_df, spreadsheet, hoja_nombre):
             # 2. Conversión a numérico
             df[col] = pd.to_numeric(df[col], errors="coerce")
             
-            # 3. CORRECCIÓN PRINCIPAL: División por 100
+            # 3. CORRECCIÓN PRINCIPAL: División por 10000 (CORREGIDO)
             df[col] = df[col] / 10000.0
 
             # 4. Formato Regional: (Punto para miles, Coma para decimales)
@@ -365,6 +365,7 @@ WHERE
 saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
 
 # 1. EXPORTACIÓN DE SALDOS DE CLIENTES FILTRADOS (Usa la función genérica)
+# NOTA: Los argumentos son correctos para exportar_tabla_completa (4 argumentos)
 exportar_tabla_completa(
     QUERY_SALDOS_CLIENTES_FILTRADOS,
     saldos_sheet, "Base Saldos Clientes",
@@ -372,11 +373,11 @@ exportar_tabla_completa(
 )
 
 # 2. 💡 EXPORTACIÓN DE SALDOS DE PROVEEDORES (Usa la función CORREGIDA) 💡
+# NOTA: Se eliminó el cuarto argumento para solucionar el TypeError.
 print("\nEjecutando exportación CORREGIDA: Composicion Saldo Proveedores de INPROCIL S.A.")
 exportar_tabla_corregida(
     QUERY_SALDOS_PROVEEDORES_FILTRADOS,
-    saldos_sheet, "Composicion Saldo Proveedores",
-    ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
+    saldos_sheet, "Composicion Saldo Proveedores" 
 )
 
 # 3. Resto de exportaciones...
