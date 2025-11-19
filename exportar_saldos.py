@@ -101,14 +101,14 @@ def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
-    
+            
     df_recortado = df.iloc[:, :10]  # 👈 solo columnas A:J (10 columnas)
-    
+        
     valores = df_recortado.values.tolist()
     worksheet = spreadsheet.worksheet(hoja_nombre)
-    
+        
     worksheet.batch_clear(["A2:J"]) # Limpia A2:J
-    
+        
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
 
@@ -129,7 +129,7 @@ FROM public.inpro2021nube_facturacion
 WHERE cuentanombre LIKE 'Ventas Merc%%'
 ORDER BY clientecodigo, fechacomprobante
 """
-    
+        
     df = pd.read_sql(query, engine)
     df['fechacomprobante'] = pd.to_datetime(df['fechacomprobante'])
     print(f"Datos cargados: {len(df)} registros (solo ventas 'Ventas Merc')")
@@ -183,8 +183,8 @@ def calcular_status_mensual(df, cliente, primera_compra, mes_inicio, mes_fin, st
                         return "Churn Sostenido"
                     else:
                         return "Churn del Mes"
-            elif meses_desde_primera <= 3:
-                return "Cliente sin compra"
+                elif meses_desde_primera <= 3:
+                    return "Cliente sin compra"
         return None
     
     tiene_compra_actual = ultima_compra_hasta_mes >= mes_inicio
@@ -302,11 +302,36 @@ def crear_matriz_churn(df):
                 })
             
             status_mes_anterior = status
-    
+            
     return pd.DataFrame(resultados)
 
-# 📁 Spreadsheet 1
-saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
+# ----------------------------------------------------------------------------------
+# CONFIGURACIÓN DE QUERYS ESPECÍFICAS
+# ----------------------------------------------------------------------------------
+QUERY_COMPOSICION_SALDOS = "SELECT * FROM public.composicion_de_saldos_clientes"
+SHEET_ID_FOR_SALDOS = "1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20"
+
+# ----------------------------------------------------------------------------------
+# EXPORTACIONES PRINCIPALES
+# ----------------------------------------------------------------------------------
+
+# 📁 Spreadsheet 1 (ID: 1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20)
+saldos_sheet = client.open_by_url(f"https://docs.google.com/spreadsheets/d/{SHEET_ID_FOR_SALDOS}/edit")
+
+# ==================================================================================
+# 💡 NUEVA EXPORTACIÓN SOLICITADA 💡
+# La tabla COMPOSICION_DE_SALDOS_CLIENTES a la hoja con el mismo ID.
+# Asumo que el nombre de la pestaña es el mismo ID de la Spreadsheet, 
+# pero la librería gspread usa un nombre legible. Usaré el ID como nombre de la pestaña.
+# ==================================================================================
+print("\nEjecutando nueva exportación: composicion_de_saldos_clientes")
+exportar_tabla_completa(
+    QUERY_COMPOSICION_SALDOS,
+    saldos_sheet, SHEET_ID_FOR_SALDOS,
+    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundaria"] # Ajusté el nombre de la última columna decimal
+)
+
+# Exportaciones existentes (movidas bajo la nueva exportación)
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
     saldos_sheet, "Base Saldos Clientes",
@@ -339,7 +364,7 @@ exportar_tabla_completa(
     []  # No hay columnas decimales específicas para formatear
 )
 
-# 📁 Spreadsheet 2
+# 📁 Spreadsheet 2 (ID: 1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA)
 libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA/edit")
 exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
@@ -357,7 +382,7 @@ exportar_sumas_y_saldos(
     ["Debe", "Haber", "saldoperiodo", "saldo", "saldoinicial"]
 )
 
-# 📁 Spreadsheet 3
+# 📁 Spreadsheet 3 (ID: 1KQCsJbtIBDfDv86Y9n4lU6Z6e0s9SSVlPlq1MN-dF6g)
 stock_con_puc_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1KQCsJbtIBDfDv86Y9n4lU6Z6e0s9SSVlPlq1MN-dF6g/edit")
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
