@@ -350,7 +350,22 @@ WHERE
     c.empresanombre = 'INPROCIL S.A.' AND
     c.cuentacontablecodigo IN ('ANT101', 'AAP301', 'DML101') AND
     c.clientenombre not like '%BENVENUTO%'  AND
-    c.clientenombre not like '%CONCEPCION%'
+    c.clientenombre not like '%CONCEPCION%' AND
+    c.clientenombre not like '%BUIATTI%' AND
+    c.clientenombre not like '%CAMPUZANO HORACIO DAVID%' AND
+    c.clientenombre not like '%CONTIN %' AND
+    c.clientenombre not like '%COOPERATIVA DE TRABAJO%' AND
+    c.clientenombre not like '%DOMVIL%' AND
+    c.clientenombre not like '%GAS MOVIL%' AND
+    c.clientenombre not like '%GNC PATAGONICA%' AND
+    c.clientenombre not like '%GOMEZ FABIAN%' AND
+    c.clientenombre not like '%GOMEZ GUSTAVO%' AND
+    c.clientenombre not like '%PALLETIZATE%' AND
+    c.clientenombre not like '%PAUSYG%' AND
+    c.clientenombre not like '%POWER CHECK%' AND
+    c.clientenombre not like '%RODRIGUEZ ALEJANDRO%' AND
+    c.clientenombre not like '%VALSI GAS%'
+    
     
 """
 
