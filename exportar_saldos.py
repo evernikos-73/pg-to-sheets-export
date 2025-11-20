@@ -369,11 +369,9 @@ WHERE
     
 """
 
-# 💡 QUERY NUEVA: Saldos de Proveedores filtrados
+# 💡 QUERY NUEVA: Saldos de Proveedores filtrados (ACTUALIZADA)
 QUERY_SALDOS_PROVEEDORES_FILTRADOS = """
-SELECT * FROM public.composicion_de_saldos_proveedores c
-WHERE 
-    c.empresanombre = 'INPROCIL S.A.'
+select * from public.inpro2021nube_composicion_saldo_proveedores_inprocil c
 """
 # ----------------------------------------------------------------------------------
 # EXPORTACIONES PRINCIPALES
@@ -383,19 +381,18 @@ WHERE
 saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
 
 # 1. EXPORTACIÓN DE SALDOS DE CLIENTES FILTRADOS (Usa la función genérica)
-# NOTA: Los argumentos son correctos para exportar_tabla_completa (4 argumentos)
 exportar_tabla_completa(
     QUERY_SALDOS_CLIENTES_FILTRADOS,
     saldos_sheet, "Base Saldos Clientes",
     ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
 )
 
-# 2. 💡 EXPORTACIÓN DE SALDOS DE PROVEEDORES (Usa la función CORREGIDA) 💡
-# NOTA: Se eliminó el cuarto argumento para solucionar el TypeError.
-print("\nEjecutando exportación CORREGIDA: Composicion Saldo Proveedores de INPROCIL S.A.")
-exportar_tabla_corregida(
+# 2. 💡 EXPORTACIÓN DE SALDOS DE PROVEEDORES (MODIFICADO PARA NO DIVIDIR) 💡
+print("\nEjecutando exportación: Composicion Saldo Proveedores de INPROCIL S.A.")
+exportar_tabla_completa(
     QUERY_SALDOS_PROVEEDORES_FILTRADOS,
-    saldos_sheet, "Composicion Saldo Proveedores" 
+    saldos_sheet, "Composicion Saldo Proveedores",
+    ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
 )
 
 # 3. Resto de exportaciones...
