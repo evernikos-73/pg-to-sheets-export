@@ -349,7 +349,8 @@ SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil c
 WHERE 
     c.empresanombre = 'INPROCIL S.A.' AND
     c.cuentacontablecodigo IN ('ANT101', 'AAP301', 'DML101') AND
-    c.clientenombre not like '%BENVENUTO%'
+    c.clientenombre not like '%BENVENUTO%'  AND
+    c.clientenombre not like '%CONCEPCION%'
     
 """
 
