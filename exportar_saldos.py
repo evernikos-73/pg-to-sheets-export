@@ -51,20 +51,56 @@ def update_with_retry(worksheet, values, range_name, retries=3, wait=5):
             else:
                 raise
 
-# 🧩 Función genérica para exportar a hoja completa
+# 🧩 FUNCIÓN GENÉRICA EXPORTAR TABLA COMPLETA (Sin corrección de $ / 10000)
 def exportar_tabla_completa(query_or_df, spreadsheet, hoja_nombre, columnas_decimal=[]):
     if isinstance(query_or_df, str):
         df = pd.read_sql(query_or_df, engine)
     else:
         df = query_or_df
+        
     for col in columnas_decimal:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
+            
     worksheet = spreadsheet.worksheet(hoja_nombre)
     worksheet.clear()
     set_with_retry(worksheet, df)
     print(f"✅ Exportado: {hoja_nombre}")
+
+# 💡 FUNCIÓN ESPECÍFICA PARA CORREGIR IMPORTES DE SALDOS (División por 10000) 💡
+def exportar_tabla_corregida(query_or_df, spreadsheet, hoja_nombre):
+    if isinstance(query_or_df, str):
+        df = pd.read_sql(query_or_df, engine)
+    else:
+        df = query_or_df
+    
+    # Columnas que necesitan división por 10000 y corrección de formato
+    columnas_a_corregir_y_dividir = [
+        'importemonedatransaccion', 
+        'importemonedaprincipal', 
+        'importemonedasecundaria'
+    ]
+    
+    for col in columnas_a_corregir_y_dividir:
+        if col in df.columns:
+            # 1. Limpieza inicial
+            df[col] = df[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
+            
+            # 2. Conversión a numérico
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            
+            # 3. CORRECCIÓN PRINCIPAL: División por 10000 (CORREGIDO)
+            df[col] = df[col] / 10000.0
+
+            # 4. Formato Regional: (Punto para miles, Coma para decimales)
+            df[col] = df[col].apply(lambda x: f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if pd.notnull(x) else "")
+            
+    worksheet = spreadsheet.worksheet(hoja_nombre)
+    worksheet.clear()
+    set_with_retry(worksheet, df)
+    print(f"✅ Exportado CORREGIDO: {hoja_nombre}")
+
 
 # 🧩 Exportar solo A2:Q sin encabezado
 def exportar_libro_mayor(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
@@ -94,38 +130,42 @@ def exportar_stock(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Stock")
 
-# 📤 Exportar A2:H sin encabezado
+# 📤 Exportar A2:J sin encabezado
 def exportar_sumas_y_saldos(query, spreadsheet, hoja_nombre, columnas_decimal=[]):
     df = pd.read_sql(query, engine)
     for col in columnas_decimal:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
             df[col] = df[col].apply(lambda x: f"{x:.2f}".replace(".", ",") if pd.notnull(x) else "")
-    df_recortado = df.iloc[:, :10]  # 👈 solo columnas A:H
+            
+    df_recortado = df.iloc[:, :10]  # 👈 solo columnas A:J (10 columnas)
+        
     valores = df_recortado.values.tolist()
     worksheet = spreadsheet.worksheet(hoja_nombre)
-    worksheet.batch_clear(["A2:j"])
+    
+    worksheet.batch_clear(["A2:J"]) # Limpia A2:J
+        
     update_with_retry(worksheet, values=valores, range_name="A2")
     print("✅ Exportado sin encabezado: Aux Sumas y Saldos")
 
-# Funciones para análisis de churn
+# Funciones para análisis de churn (no modificadas)
 def obtener_datos_facturacion():
     """Obtiene los datos de facturación de la base de datos
     Solo incluye ventas donde cuentanombre comience con 'Ventas Merc'
     """
     query = """
-    SELECT 
-        clientecodigo,
-        clientenombre,
-        fechacomprobante,
-        empresacodigo,
-        empresanombre,
-        cuentanombre
-    FROM public.inpro2021nube_facturacion
-    WHERE cuentanombre LIKE 'Ventas Merc%%'
-    ORDER BY clientecodigo, fechacomprobante
-    """
-    
+SELECT 
+    clientecodigo,
+    clientenombre,
+    fechacomprobante,
+    empresacodigo,
+    empresanombre,
+    cuentanombre
+FROM public.inpro2021nube_facturacion
+WHERE cuentanombre LIKE 'Ventas Merc%%'
+ORDER BY clientecodigo, fechacomprobante
+"""
+        
     df = pd.read_sql(query, engine)
     df['fechacomprobante'] = pd.to_datetime(df['fechacomprobante'])
     print(f"Datos cargados: {len(df)} registros (solo ventas 'Ventas Merc')")
@@ -234,7 +274,7 @@ def generar_fechas_mensuales(df):
     
     fecha_min = df['fechacomprobante'].min()
     fecha_max = df['fechacomprobante'].max()
-
+    
     inicio = fecha_min.replace(day=1)
     if fecha_max.month == 12:
         fin = fecha_max.replace(day=31)
@@ -298,29 +338,76 @@ def crear_matriz_churn(df):
                 })
             
             status_mes_anterior = status
-    
+            
     return pd.DataFrame(resultados)
 
-# 📁 Spreadsheet 1
+# ----------------------------------------------------------------------------------
+# CONFIGURACIÓN DE QUERYS ESPECÍFICAS
+# ----------------------------------------------------------------------------------
+# Query para saldos de clientes filtrados (usa la función genérica)
+QUERY_SALDOS_CLIENTES_FILTRADOS = """
+SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil c
+WHERE 
+    c.empresanombre = 'INPROCIL S.A.' AND
+    c.cuentacontablecodigo IN ('ANT101', 'AAP301', 'DML101') AND
+    c.clientenombre not like '%%BENVENUTO%%'  AND
+    c.clientenombre not like '%%CONCEPCION%%' AND
+    c.clientenombre not like '%%BUIATTI%%' AND
+    c.clientenombre not like '%%CAMPUZANO HORACIO DAVID%%' AND
+    c.clientenombre not like '%%CONTIN %%' AND
+    c.clientenombre not like '%%COOPERATIVA DE TRABAJO%%' AND
+    c.clientenombre not like '%%DOMVIL%%' AND
+    c.clientenombre not like '%%GAS MOVIL%%' AND
+    c.clientenombre not like '%%GNC PATAGONICA%%' AND
+    c.clientenombre not like '%%GOMEZ FABIAN%%' AND
+    c.clientenombre not like '%%GOMEZ GUSTAVO%%' AND
+    c.clientenombre not like '%%PALLETIZATE%%' AND
+    c.clientenombre not like '%%PAUSYG%%' AND
+    c.clientenombre not like '%%POWER CHECK%%' AND
+    c.clientenombre not like '%%RODRIGUEZ ALEJANDRO%%' AND
+    c.clientenombre not like '%%VALSI GAS%%'
+"""
+
+# 💡 QUERY NUEVA: Saldos de Proveedores filtrados (ACTUALIZADA)
+QUERY_SALDOS_PROVEEDORES_FILTRADOS = """
+select * from public.inpro2021nube_composicion_saldo_proveedores_inprocil c
+"""
+# ----------------------------------------------------------------------------------
+# EXPORTACIONES PRINCIPALES
+# ----------------------------------------------------------------------------------
+
+# 📁 Spreadsheet 1 (ID: 1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20)
 saldos_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1oR_fdVCyn1cA8zwH4XgU5VK63cZaDC3I1i3-SWaUT20/edit")
+
+# 1. EXPORTACIÓN DE SALDOS DE CLIENTES FILTRADOS (Usa la función genérica)
 exportar_tabla_completa(
-    "SELECT * FROM public.inpro2021nube_composicion_saldos_clientes_inprocil",
+    QUERY_SALDOS_CLIENTES_FILTRADOS,
     saldos_sheet, "Base Saldos Clientes",
-    ["ImporteMonedaTransaccion", "ImporteMonedaPrincipal", "ImporteMonedaSecundariaon"]
+    ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
 )
+
+# 2. 💡 EXPORTACIÓN DE SALDOS DE PROVEEDORES (MODIFICADO PARA NO DIVIDIR) 💡
+print("\nEjecutando exportación: Composicion Saldo Proveedores de INPROCIL S.A.")
+exportar_tabla_completa(
+    QUERY_SALDOS_PROVEEDORES_FILTRADOS,
+    saldos_sheet, "Composicion Saldo Proveedores",
+    ["importemonedatransaccion", "importemonedaprincipal", "importemonedasecundaria"]
+)
+
+# 3. Resto de exportaciones...
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
     saldos_sheet, "Base Sumas y Saldos",
     ["sumadebe", "sumahaber", "saldoacumulado"]
 )
 
-# --- CAMBIO REALIZADO AQUI ---
+# --- CAMBIO REALIZADO AQUI: STOCK COMPROMETIDO ---
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_stock_comprometido",
     saldos_sheet, "Base Pendientes Entrega",
     ["cantidadpendiente"]
 )
-# -----------------------------
+# -------------------------------------------------
 
 exportar_tabla_completa(
     "SELECT * FROM public.inpro2021nube_facturacion",
@@ -328,11 +415,7 @@ exportar_tabla_completa(
     ["preciomonedatransaccion", "importemonedatransaccion", "importemonedaprincipal",
      "importemonedasecundaria", "cotizacionmonedatransaccion", "cantidad"]
 )
-exportar_tabla_completa(
-    "SELECT * FROM public.inpro2021nube_cobranzas",
-    saldos_sheet, "Base Cobranza",
-    ["importe_cobranza"]
-)
+
 
 # Análisis de churn y exportación a Spreadsheet 1, pestaña Analisis_Churn
 print("\nEjecutando análisis de churn...")
@@ -346,24 +429,29 @@ exportar_tabla_completa(
 
 # 📁 Spreadsheet 2
 libro_mayor_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1e9BuGiiOx-GhokgsM37MAaUfddxLH30T-gtYu3UtfOA/edit")
+
 exportar_libro_mayor(
     "SELECT * FROM public.inpro2021nube_libro_mayor",
     libro_mayor_sheet, "Aux Libro Mayor",
     ["Debe", "Haber", "importemonedaprincipal", "Imp. operacion ppal.", "Imp. operacion sec.","Tipo Cambio"]
 )
+
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     libro_mayor_sheet, "Aux Stock",
     ["Stock","UltimoPrecioCompra"]
 )
+
 exportar_sumas_y_saldos(
     "SELECT * FROM public.inpro2021nube_sumas_y_saldos",
     libro_mayor_sheet, "Aux Sumas y Saldos",
     ["Debe", "Haber", "saldoperiodo", "saldo", "saldoinicial"]
 )
 
+
 # 📁 Spreadsheet 3
 stock_con_puc_sheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1KQCsJbtIBDfDv86Y9n4lU6Z6e0s9SSVlPlq1MN-dF6g/edit")
+
 exportar_stock(
     "SELECT * FROM public.inpro2021nube_stock_con_PUC",
     stock_con_puc_sheet, "Aux Stock",
